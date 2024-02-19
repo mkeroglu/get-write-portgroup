@@ -1,0 +1,10 @@
+vcenter_hostname: 10.133.42.43
+vcenter_username: administrator@linuxera.hq
+vcenter_password: Red83lera!
+src_csv_file: ./switch_info.csv
+login_host: 10.106.31.104
+login_db: postgres
+login_password: q1w2e3r4
+login_user: postgres
+csv_file: /tmp/switch_info.csv
+table_name: switch_info2

@@ -1,0 +1,93 @@
+---
+# tasks file for vc_gather_dswitch_info
+- name: Gather all registered dvswitch
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - ./vars.yaml
+
+  tasks:
+    - name: Gather all registered dvswitch
+      community.vmware.vmware_dvswitch_info:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+      register: dvswitch_info
+
+    - name: create dswitch list
+      ansible.builtin.set_fact:
+        dswitches: "{{ dvswitch_info.distributed_virtual_switches | map(attribute='configure.name') | list }}"
+
+    - name: show dswitches
+      ansible.builtin.debug:
+        msg: "{{ dswitches }}"
+
+    - name: Gather info about specific dvswitch
+      community.vmware.vmware_dvswitch_info:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        switch_name: "{{ item }}"
+        validate_certs: false
+      register: dvswitch_info_specific
+      loop: "{{ dswitches }}"
+
+    - name: show dswitch info
+      ansible.builtin.debug:
+        msg: "{{ dvswitch_info_specific.results }}"
+
+    - name: Get info about DVPG
+      community.vmware.vmware_dvs_portgroup_find:
+        hostname: "{{ vcenter_hostname }}"
+        username: "{{ vcenter_username }}"
+        password: "{{ vcenter_password }}"
+        dvswitch: "{{ item }}"
+        validate_certs: false
+      register: dvpg_info
+      loop: "{{ dswitches }}"
+
+    - name: show dvpg information
+      ansible.builtin.debug:
+        msg: "{{ dvpg_info.results }}"
+
+    - name: Extract DVPG information and set facts
+      ansible.builtin.set_fact:
+        dvpg_info_extracted: "{{ dvpg_info_extracted | default([]) + item.dvs_portgroups }}"
+      loop: "{{ dvpg_info.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Display extracted DVPG information
+      ansible.builtin.debug:
+        var: dvpg_info_extracted
+
+    - name: Set facts for dvswitch, name, and vlan_id
+      ansible.builtin.set_fact:
+        dvswitch: "{{ dvpg_info_extracted | map(attribute='dvswitch') | list }}"
+        name: "{{ dvpg_info_extracted | map(attribute='name') | list }}"
+        vlan_id: "{{ dvpg_info_extracted | map(attribute='vlan_id') | list }}"
+
+    - name: Display extracted DVPG information
+      ansible.builtin.debug:
+        var: dvswitch
+
+    - name: Display extracted DVPG information
+      ansible.builtin.debug:
+        var: name
+
+    - name: Display extracted DVPG information
+      ansible.builtin.debug:
+        var: vlan_id
+
+    - name: Insert switch portgroup information into PostgreSQL
+      postgresql_query:
+        db: "{{ login_db }}"
+        login_user: "{{ login_user }}"
+        login_password: "{{ login_password }}"
+        login_host: "{{ login_host }}"
+        query: |
+          {% for index in range(dvswitch | length) %}
+            INSERT INTO {{ table_name }} (dvswitch, name, vlan_id)
+            VALUES ('{{ dvswitch[index] }}', '{{ name[index] }}', '{{ vlan_id[index] }}');
+          {% endfor %}
