@@ -7,4 +7,4 @@ login_db: postgres
 login_password: q1w2e3r4
 login_user: postgres
 csv_file: /tmp/switch_info.csv
-table_name: switch_info2
+table_name: switch_info4

@@ -2,7 +2,7 @@
 # tasks file for vc_gather_dswitch_info
 - name: Gather all registered dvswitch
   hosts: localhost
-  gather_facts: no
+  gather_facts: yes
   vars_files:
     - ./vars.yaml
 
@@ -14,6 +14,10 @@
         password: "{{ vcenter_password }}"
         validate_certs: false
       register: dvswitch_info
+
+    - name: show dswitches
+      ansible.builtin.debug:
+        msg: "{{ dvswitch_info }}"
 
     - name: create dswitch list
       ansible.builtin.set_fact:
@@ -70,6 +74,10 @@
 
     - name: Display extracted DVPG information
       ansible.builtin.debug:
+        var: vcenter
+
+    - name: Display extracted DVPG information
+      ansible.builtin.debug:
         var: dvswitch
 
     - name: Display extracted DVPG information
@@ -78,7 +86,39 @@
 
     - name: Display extracted DVPG information
       ansible.builtin.debug:
-        var: vlan_id
+       var: vlan_id
+
+    - name: set timedate to get consistency accross the collected data
+      ansible.builtin.set_fact:
+        datetime_of_pb: "{{ ansible_date_time['iso8601_basic'] }}"
+
+    - name: Display extracted DVPG information
+      ansible.builtin.debug:
+        var: datetime_of_pb
+
+    - name: Dissplay extracted DVPG information
+      ansible.builtin.debug:
+        var: vcenter_hostname
+
+
+#    - name: Combine dvswitch, name, and vlan_id
+ #     set_fact:
+  #      combined_output: "{{ combined_output | default([]) + [item.dvswitch + ', ' + datetime_of_pb + ', ' + vcenter_hostname + ', ' + item.name + ', ' + item.vlan_id] }}"
+   #   loop: "{{ dvpg_info_extracted }}"
+    #  loop_control:
+     #   label: "{{ item.name }}"
+
+#    - name: Print combined output
+ #     debug:
+  #      msg: "{{ combined_output }}"
+
+
+    - name: Combine dvswitch, name, and vlan_id
+      set_fact:
+        combined_output: "{{ combined_output | default([]) + [item.dvswitch + ', ' + datetime_of_pb + ', ' + vcenter_hostname + ', ' + item.name + ', ' + item.vlan_id] }}"
+      loop: "{{ dvpg_info_extracted }}"
+      loop_control:
+        label: "{{ item.name }}"
 
     - name: Insert switch portgroup information into PostgreSQL
       postgresql_query:
@@ -88,6 +128,6 @@
         login_host: "{{ login_host }}"
         query: |
           {% for index in range(dvswitch | length) %}
-            INSERT INTO {{ table_name }} (dvswitch, name, vlan_id)
-            VALUES ('{{ dvswitch[index] }}', '{{ name[index] }}', '{{ vlan_id[index] }}');
+            INSERT INTO {{ table_name }} (name, status, vcenter_name, port_group_name, vlan_id)
+            VALUES ('{{ dvswitch[index] }}', '{{ datetime_of_pb }}', '{{ vcenter_hostname }}', '{{ name[index] }}', '{{ vlan_id[index] }}');
           {% endfor %}
