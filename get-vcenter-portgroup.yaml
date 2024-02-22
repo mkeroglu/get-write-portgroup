@@ -1,11 +1,7 @@
 ---
-# tasks file for vc_gather_dswitch_info
-- name: Gather all registered dvswitch
-  hosts: localhost
+- hosts: localhost
   gather_facts: yes
-  vars_files:
-    - ./vars.yaml
-
+  connection: local
   tasks:
     - name: Gather all registered dvswitch
       community.vmware.vmware_dvswitch_info:
