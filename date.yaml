@@ -1,0 +1,29 @@
+---
+- name: Get current date and time
+  hosts: localhost
+  tasks:
+    - name: Get current date and time
+      command: python3.11 -c 'import datetime; now = datetime.datetime.now(); print(now.strftime("%Y-%m-%d %H:%M:%S.%f"))'
+      register: current_datetime
+
+    - name: Print current date and time with timezone offset
+      debug:
+        msg: "{{ current_datetime.stdout }}+03:00"
+
+
+    - name: Insert switch portgroup information into PostgreSQL
+      postgresql_query:
+        db: "{{ login_db }}"
+        login_user: "{{ login_user }}"
+        login_password: "{{ login_password }}"
+        login_host: "{{ login_host }}"
+        query: |
+          {% for index in range(dvswitch | length) %}          
+            INSERT INTO "{{ table_name }}" (name, status, vcenter_name, port_group_name, vlan_id, is_managed, created_at, updated_at)
+            VALUES ( '{{ dvswitch[index] }}', '{{ datetime_of_pb }}', '{{ vcenter_hostname }}', '{{ name[index] }}', '{{ vlan_id[index] }}', true, '{{ current_datetime }}', '{{ current_datetime }}')
+            ON CONFLICT (name, vcenter_name, port_group_name, vlan_id) DO UPDATE SET
+            status = EXCLUDED.status,
+            is_managed = EXCLUDED.is_managed,
+            created_at = EXCLUDED.created_at,
+            updated_at = EXCLUDED.updated_at;
+          {% endfor %}

@@ -1,0 +1,12 @@
+---
+- name: Get current date and time
+  hosts: localhost
+  tasks:
+    - name: Get current date and time
+      command: python -c 'import datetime; now = datetime.datetime.now(); print(now.strftime("%Y-%m-%d %H:%M:%S.%f%z"))'
+      register: current_datetime
+
+    - name: Print current date and time
+      debug:
+        msg: "{{ current_datetime.stdout }}"
+
